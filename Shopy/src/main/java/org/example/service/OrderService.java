@@ -38,7 +38,7 @@ public class OrderService implements IOrderService {
         List<Point> locationsToVisit = getLocationsForOrder(order);
         List<Point> route = routingService.calculateOptimalRoute(locationsToVisit);
 
-        String message = "✅ Order ready! Please collect it at the desk";
+        String message = "✅ Order ready! Please collect it at the desk.";
         return new OrderResult(OrderStatus.SUCCESS, message, route);
     }
 
