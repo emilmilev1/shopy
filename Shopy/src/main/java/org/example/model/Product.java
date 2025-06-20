@@ -59,6 +59,12 @@ public class Product {
         }
     }
 
+    public void addStock(int quantityToAdd) {
+        if (quantityToAdd > 0) {
+            setQuantity(this.quantity + quantityToAdd);
+        }
+    }
+
     @Override
     public String toString() {
         return String.format(Locale.US, "%-10s | Qty: %d | Price: %.2f | Location: (%d,%d)",

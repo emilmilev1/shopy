@@ -1,5 +1,6 @@
 package org.example.service;
 
+import org.example.helper.Result;
 import org.example.interfaces.IInventoryService;
 import org.example.model.Point;
 import org.example.model.Product;
@@ -14,8 +15,26 @@ public class InventoryService implements IInventoryService {
     private final Map<String, Product> products = new ConcurrentHashMap<>();
 
     @Override
-    public void createProduct(Product product) {
-        products.put(product.getName().toLowerCase(), product);
+    public Result createProduct(Product newProduct) {
+        Point newLocation = newProduct.getLocation();
+
+        for (Product existingProduct : products.values()) {
+            if (existingProduct.getLocation().equals(newLocation)) {
+                if (existingProduct.getName().equalsIgnoreCase(newProduct.getName())) {
+                    existingProduct.addStock(newProduct.getQuantity());
+                    return new Result(true, "Product stock updated successfully.");
+                } else {
+                    return new Result(false, String.format(
+                            "Cannot add product '%s'. Location %s is already occupied by a different product: '%s'.",
+                            newProduct.getName(), newLocation, existingProduct.getName()
+                    ));
+                }
+            }
+        }
+
+        products.put(newProduct.getName().toLowerCase(), newProduct);
+
+        return new Result(true, "Product added successfully.");
     }
 
     @Override
@@ -29,25 +48,47 @@ public class InventoryService implements IInventoryService {
     }
 
     @Override
-    public void updateProduct(String name, int newQuantity, double newPrice, Point newLocation) {
+    public Result updateProduct(String name, int newQuantity, double newPrice, Point newLocation) {
         Optional<Product> optionalProduct = getProduct(name.toLowerCase());
 
         if (optionalProduct.isPresent()) {
-            optionalProduct.get().updateDetails(newQuantity, newPrice, newLocation);
+            Product product = optionalProduct.get();
+            Point currentLocation = product.getLocation();
+
+            if (!currentLocation.equals(newLocation)) {
+                for (Product existingProduct : products.values()) {
+                    if (existingProduct.getLocation().equals(newLocation) &&
+                            !existingProduct.getName().equalsIgnoreCase(name)) {
+                        return new Result(false, String.format(
+                                "Cannot update location for '%s'. New location %s is already occupied by '%s'.",
+                                name, newLocation, existingProduct.getName()
+                        ));
+                    }
+                }
+            }
+
+            product.updateDetails(newQuantity, newPrice, newLocation);
+            return new Result(true, "Product updated successfully.");
+        } else {
+            return new Result(false, "Product not found for update: " + name);
         }
     }
 
     @Override
     public boolean deleteProduct(String name) {
-        return products.remove(name.toLowerCase()) != null;
+        Product removedProduct = products.remove(name.toLowerCase());
+        return removedProduct != null;
     }
 
     @Override
-    public void reduceStock(String name, int quantityToReduce) {
+    public Result reduceStock(String name, int quantityToReduce) {
         Optional<Product> productOpt = getProduct(name.toLowerCase());
 
         if (productOpt.isPresent()) {
             productOpt.get().reduceStock(quantityToReduce);
+            return new Result(true, "Product reduced successfully.");
+        } else {
+            return new Result(false, "Product not found for stock reduction: " + name);
         }
     }
 }
