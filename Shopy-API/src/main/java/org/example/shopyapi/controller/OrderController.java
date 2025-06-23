@@ -18,9 +18,13 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderResult> placeOrder(@Valid @RequestBody PlaceOrderRequestDto requestDto) {
+    public ResponseEntity<Object> placeOrder(@Valid @RequestBody PlaceOrderRequestDto requestDto) {
         OrderResult result = orderService.processOrder(requestDto);
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(new java.util.LinkedHashMap<>() {{
+            put("id", result.orderId());
+            put("status", result.status());
+            put("message", result.message());
+        }});
     }
 
     @GetMapping("/{id}")

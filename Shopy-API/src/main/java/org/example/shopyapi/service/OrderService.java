@@ -40,27 +40,29 @@ public class OrderService {
 
         if (!missingItems.isEmpty()) {
             StringBuilder messageBuilder = new StringBuilder();
-            messageBuilder.append("❌ We cannot fulfill your order right now – not enough stock\n");
-            messageBuilder.append("\tMissing items:\n");
-            missingItems.forEach(item -> messageBuilder.append("\t\t").append(item).append("\n"));
-            message = messageBuilder.toString().trim();
+            messageBuilder.append("Not enough stock to fulfill your order.");
+            if (!missingItems.isEmpty()) {
+                messageBuilder.append(" Missing items: ");
+                messageBuilder.append(String.join(", ", missingItems));
+            }
+            message = messageBuilder.toString();
 
             order = new Order(newId, OrderStatus.FAIL, orderItems, List.of());
             orderRepository.put(order.getId(), order);
 
-            return new OrderResult(order.getStatus(), message, order.getRoute());
+            return new OrderResult(order.getId(), order.getStatus(), message, order.getRoute());
         }
 
         fulfillOrder(requestDto);
 
         List<Point> locationsToVisit = getLocationsForOrder(requestDto);
         List<Point> route = routingService.calculateOptimalRoute(locationsToVisit);
-        message = "✅ Order ready! Please collect it at the desk.";
+        message = "Your order is ready! Please collect it.";
 
         order = new Order(newId, OrderStatus.SUCCESS, orderItems, route);
         orderRepository.put(order.getId(), order);
 
-        return new OrderResult(order.getStatus(), message, order.getRoute());
+        return new OrderResult(order.getId(), order.getStatus(), message, order.getRoute());
     }
 
     private List<String> checkStock(PlaceOrderRequestDto requestDto) {

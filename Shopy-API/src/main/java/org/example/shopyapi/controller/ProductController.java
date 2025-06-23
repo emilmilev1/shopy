@@ -23,15 +23,19 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> createProduct(@RequestBody CreateProductRequestDto requestDto) {
-        Product createdProduct = inventoryService.createProduct(requestDto);
-
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(createdProduct.getId())
-                .toUri();
-
-        return ResponseEntity.created(location).body(ProductDto.fromEntity(createdProduct));
+    public ResponseEntity<?> createProduct(@RequestBody CreateProductRequestDto requestDto) {
+        try {
+            Product createdProduct = inventoryService.createProduct(requestDto);
+            URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                    .path("/{id}")
+                    .buildAndExpand(createdProduct.getId())
+                    .toUri();
+            return ResponseEntity.created(location).body(ProductDto.fromEntity(createdProduct));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(new java.util.LinkedHashMap<>() {{
+                put("error", e.getMessage());
+            }});
+        }
     }
 
     @GetMapping
