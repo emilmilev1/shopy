@@ -3,26 +3,27 @@ package org.example.shopyapi.service;
 import org.example.shopyapi.dto.OrderItemDto;
 import org.example.shopyapi.dto.PlaceOrderRequestDto;
 import org.example.shopyapi.model.*;
+import org.example.shopyapi.repository.OrderRepository;
+import org.example.shopyapi.repository.OrderItemRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Service
 public class OrderService {
-    private final Map<Long, Order> orderRepository = new ConcurrentHashMap<>();
-
-    private final AtomicLong idSequence = new AtomicLong();
-
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
     private final RoutingService routingService;
 
-    public OrderService(InventoryService inventoryService, RoutingService routingService) {
+    @Autowired
+    public OrderService(OrderRepository orderRepository, OrderItemRepository orderItemRepository, InventoryService inventoryService, RoutingService routingService) {
+        this.orderRepository = orderRepository;
+        this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
         this.routingService = routingService;
     }
@@ -30,7 +31,6 @@ public class OrderService {
     public OrderResult processOrder(PlaceOrderRequestDto requestDto) {
         List<String> missingItems = checkStock(requestDto);
 
-        long newId = idSequence.incrementAndGet();
         List<OrderItem> orderItems = requestDto.items().stream()
                 .map(item -> new OrderItem(item.productName(), item.quantity()))
                 .collect(Collectors.toList());
@@ -39,17 +39,13 @@ public class OrderService {
         String message;
 
         if (!missingItems.isEmpty()) {
-            StringBuilder messageBuilder = new StringBuilder();
-            messageBuilder.append("Not enough stock to fulfill your order.");
-            if (!missingItems.isEmpty()) {
-                messageBuilder.append(" Missing items: ");
-                messageBuilder.append(String.join(", ", missingItems));
-            }
-            message = messageBuilder.toString();
-
-            order = new Order(newId, OrderStatus.FAIL, orderItems, List.of());
-            orderRepository.put(order.getId(), order);
-
+            message = "Not enough stock to fulfill your order.";
+            order = new Order();
+            order.setStatus(OrderStatus.FAIL);
+            order.addItems(orderItems);
+            order.setRoute(List.of());
+            order = orderRepository.save(order);
+            orderItemRepository.saveAll(orderItems);
             return new OrderResult(order.getId(), order.getStatus(), message, order.getRoute());
         }
 
@@ -59,8 +55,12 @@ public class OrderService {
         List<Point> route = routingService.calculateOptimalRoute(locationsToVisit);
         message = "Your order is ready! Please collect it.";
 
-        order = new Order(newId, OrderStatus.SUCCESS, orderItems, route);
-        orderRepository.put(order.getId(), order);
+        order = new Order();
+        order.setStatus(OrderStatus.SUCCESS);
+        order.addItems(orderItems);
+        order.setRoute(route);
+        order = orderRepository.save(order);
+        orderItemRepository.saveAll(orderItems);
 
         return new OrderResult(order.getId(), order.getStatus(), message, order.getRoute());
     }
@@ -99,6 +99,6 @@ public class OrderService {
     }
 
     public Optional<Order> findById(Long id) {
-        return Optional.ofNullable(orderRepository.get(id));
+        return orderRepository.findById(id);
     }
 }

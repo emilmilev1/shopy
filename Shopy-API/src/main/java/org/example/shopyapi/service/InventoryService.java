@@ -4,19 +4,21 @@ import org.example.shopyapi.dto.CreateProductRequestDto;
 import org.example.shopyapi.dto.UpdateProductRequestDto;
 import org.example.shopyapi.model.Point;
 import org.example.shopyapi.model.Product;
+import org.example.shopyapi.repository.ProductRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class InventoryService {
-    private final Map<Long, Product> products = new ConcurrentHashMap<>();
-    private final AtomicLong idSequence = new AtomicLong();
-    private final Map<String, Long> nameToIdIndex = new ConcurrentHashMap<>();
+    private final ProductRepository productRepository;
+
+    @Autowired
+    public InventoryService(ProductRepository productRepository) {
+        this.productRepository = productRepository;
+    }
 
     public Product createProduct(CreateProductRequestDto productDto) {
         Optional<Product> productByName = findByName(productDto.name());
@@ -28,7 +30,7 @@ public class InventoryService {
             Product existing = productByName.get();
             if (Double.compare(existing.getPrice(), productDto.price()) == 0) {
                 existing.addStock(productDto.quantity());
-                return existing;
+                return productRepository.save(existing);
             } else {
                 throw new IllegalStateException("Product with name '" + productDto.name() + "' at location " + productDto.location() + " already exists but with a different price.");
             }
@@ -46,55 +48,42 @@ public class InventoryService {
             );
         }
 
-        long newId = idSequence.incrementAndGet();
         Product product = new Product(
-                newId,
                 productDto.name(),
                 productDto.price(),
                 productDto.quantity(),
                 productDto.location()
         );
 
-        products.put(newId, product);
-        nameToIdIndex.put(product.getName().toLowerCase(), newId);
-
-        return product;
+        return productRepository.save(product);
     }
 
     public Collection<Product> getAllProducts() {
-        return products.values();
+        return productRepository.findAll();
     }
 
     public Optional<Product> findById(Long id) {
-        return Optional.ofNullable(products.get(id));
+        return productRepository.findById(id);
     }
 
     public Optional<Product> findByName(String name) {
-        Long id = nameToIdIndex.get(name.toLowerCase());
-        if (id == null) {
-            return Optional.empty();
-        }
-
-        return findById(id);
+        return productRepository.findByName(name);
     }
 
     public Optional<Product> findByLocation(Point location) {
-        return products.values().stream()
-                .filter(product -> product.getLocation().equals(location))
-                .findFirst();
+        return productRepository.findByLocation(location);
     }
 
     public Optional<Product> updateProduct(Long id, UpdateProductRequestDto dto) {
         return findById(id).map(product -> {
             product.updateFromDto(dto);
-            return product;
+            return productRepository.save(product);
         });
     }
 
     public boolean deleteProduct(Long id) {
-        Product removedProduct = products.remove(id);
-        if (removedProduct != null) {
-            nameToIdIndex.remove(removedProduct.getName().toLowerCase());
+        if (productRepository.existsById(id)) {
+            productRepository.deleteById(id);
             return true;
         }
         return false;
@@ -106,7 +95,9 @@ public class InventoryService {
         }
         Optional<Product> productOpt = findById(id);
         if (productOpt.isPresent()) {
-            productOpt.get().reduceStock(quantityToReduce);
+            Product product = productOpt.get();
+            product.reduceStock(quantityToReduce);
+            productRepository.save(product);
         }
     }
 
@@ -116,7 +107,9 @@ public class InventoryService {
         }
         Optional<Product> productOpt = findById(id);
         if (productOpt.isPresent()) {
-            productOpt.get().addStock(quantityToAdd);
+            Product product = productOpt.get();
+            product.addStock(quantityToAdd);
+            productRepository.save(product);
         }
     }
 }

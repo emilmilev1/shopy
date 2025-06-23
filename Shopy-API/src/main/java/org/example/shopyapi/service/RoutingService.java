@@ -68,8 +68,8 @@ public class RoutingService {
             // If the bot needs to move on both axes
             // it adds the intermediate corner point.
             // It moves along the X-axis first then the Y-axis.
-            if (start.x() != end.x() && start.y() != end.y()) {
-                Point corner = new Point(end.x(), start.y());
+            if (start.getX() != end.getX() && start.getY() != end.getY()) {
+                Point corner = new Point(end.getX(), start.getY());
                 fullPath.add(corner);
             }
         }
@@ -80,6 +80,6 @@ public class RoutingService {
     }
 
     private int calculateManhattanDistance(Point p1, Point p2) {
-        return Math.abs(p1.x() - p2.x()) + Math.abs(p1.y() - p2.y());
+        return Math.abs(p1.getX() - p2.getY()) + Math.abs(p1.getY() - p2.getY());
     }
 }

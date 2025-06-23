@@ -1,15 +1,28 @@
 package org.example.shopyapi.model;
 
 import org.example.shopyapi.dto.UpdateProductRequestDto;
+import jakarta.persistence.*;
 
 import java.util.Locale;
 import java.util.Objects;
 
+@Entity
+@Table(name = "product", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "location_x", "location_y"}))
 public class Product {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true)
     private String name;
     private double price;
     private int quantity;
+
+    @Embedded
+    @AttributeOverrides({
+        @AttributeOverride(name = "x", column = @Column(name = "location_x")),
+        @AttributeOverride(name = "y", column = @Column(name = "location_y"))
+    })
     private Point location;
 
     public Product() {}
@@ -50,53 +63,31 @@ public class Product {
         return this.id;
     }
 
-    private void setId(Long id) {
-        this.id = id;
-    }
+    public void setId(Long id) { this.id = id; }
 
     public String getName() {
         return name;
     }
 
-    private void setName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            throw new IllegalArgumentException("Product name cannot be null or empty");
-        }
-        this.name = name;
-    }
+    public void setName(String name) { this.name = name; }
 
     public double getPrice() {
         return price;
     }
 
-    private void setPrice(double price) {
-        if (price < 0) {
-            throw new IllegalArgumentException("Product price cannot be negative");
-        }
-        this.price = price;
-    }
+    public void setPrice(double price) { this.price = price; }
 
     public int getQuantity() {
         return quantity;
     }
 
-    private void setQuantity(int quantity) {
-        if (quantity < 0) {
-            throw new IllegalArgumentException("Product quantity cannot be negative");
-        }
-        this.quantity = quantity;
-    }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
 
     public Point getLocation() {
         return location;
     }
 
-    private void setLocation(Point location) {
-        if (location == null) {
-            throw new IllegalArgumentException("Product location cannot be null");
-        }
-        this.location = location;
-    }
+    public void setLocation(Point location) { this.location = location; }
 
     public void updateDetails(String name, int newQuantity, double newPrice, Point newLocation) {
         validateProductData(name, newPrice, newQuantity, newLocation);
@@ -156,6 +147,6 @@ public class Product {
     @Override
     public String toString() {
         return String.format(Locale.US, "%-10s | Qty: %d | Price: %.2f | Location: (%d,%d)",
-                name, quantity, price, location.x(), location.y());
+                name, quantity, price, location.getX(), location.getY());
     }
 }

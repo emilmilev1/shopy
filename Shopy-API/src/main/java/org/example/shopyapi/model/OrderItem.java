@@ -1,8 +1,22 @@
 package org.example.shopyapi.model;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "order_item")
 public class OrderItem {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String productName;
     private int quantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id")
+    private Order order;
+
+    public OrderItem() {}
 
     public OrderItem(String productName, int quantity) {
         this.productName = productName;
@@ -13,7 +27,7 @@ public class OrderItem {
         return productName;
     }
 
-    private void setProductName(String productName) {
+    public void setProductName(String productName) {
         this.productName = productName;
     }
 
@@ -21,7 +35,10 @@ public class OrderItem {
         return quantity;
     }
 
-    private void setQuantity(int quantity) {
+    public void setQuantity(int quantity) {
         this.quantity = quantity;
     }
+
+    public Order getOrder() { return order; }
+    public void setOrder(Order order) { this.order = order; }
 }
