@@ -2,6 +2,7 @@ package org.example.shopyapi.service;
 
 import org.example.shopyapi.dto.CreateProductRequestDto;
 import org.example.shopyapi.dto.UpdateProductRequestDto;
+import org.example.shopyapi.model.Point;
 import org.example.shopyapi.model.Product;
 import org.springframework.stereotype.Service;
 
@@ -14,17 +15,28 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 public class InventoryService {
     private final Map<Long, Product> products = new ConcurrentHashMap<>();
-    private final Map<String, Long> nameToIdIndex = new ConcurrentHashMap<>();
     private final AtomicLong idSequence = new AtomicLong();
+    private final Map<String, Long> nameToIdIndex = new ConcurrentHashMap<>();
 
-    public Product createProduct(CreateProductRequestDto dto) {
+    public Product createProduct(CreateProductRequestDto productDto) {
+        if (nameToIdIndex.containsKey(productDto.name().toLowerCase())) {
+            throw new IllegalStateException("Product with name '" + productDto.name() + "' already exists.");
+        }
+
+        Optional<Product> productAtLocation = findByLocation(productDto.location());
+        if (productAtLocation.isPresent()) {
+            throw new IllegalStateException(
+                    "Location " + productDto.location() + " is already occupied by product: " + productAtLocation.get().getName()
+            );
+        }
+
         long newId = idSequence.incrementAndGet();
         Product product = new Product(
                 newId,
-                dto.name(),
-                dto.price(),
-                dto.quantity(),
-                dto.location()
+                productDto.name(),
+                productDto.price(),
+                productDto.quantity(),
+                productDto.location()
         );
 
         products.put(newId, product);
@@ -50,6 +62,12 @@ public class InventoryService {
         return findById(id);
     }
 
+    public Optional<Product> findByLocation(Point location) {
+        return products.values().stream()
+                .filter(product -> product.getLocation().equals(location))
+                .findFirst();
+    }
+
     public Optional<Product> updateProduct(Long id, UpdateProductRequestDto dto) {
         return findById(id).map(product -> {
             product.updateFromDto(dto);
@@ -58,18 +76,31 @@ public class InventoryService {
     }
 
     public boolean deleteProduct(Long id) {
-        Product removed = products.remove(id);
-        if (removed != null) {
-            nameToIdIndex.remove(removed.getName().toLowerCase());
+        Product removedProduct = products.remove(id);
+        if (removedProduct != null) {
+            nameToIdIndex.remove(removedProduct.getName().toLowerCase());
             return true;
         }
         return false;
     }
 
     public void reduceStock(Long id, int quantityToReduce) {
+        if (id == null) {
+            throw new IllegalArgumentException("ID cannot be null");
+        }
         Optional<Product> productOpt = findById(id);
         if (productOpt.isPresent()) {
             productOpt.get().reduceStock(quantityToReduce);
+        }
+    }
+
+    public void addStock(Long id, int quantityToAdd) {
+        if (id == null) {
+            throw new IllegalArgumentException("ID cannot be null");
+        }
+        Optional<Product> productOpt = findById(id);
+        if (productOpt.isPresent()) {
+            productOpt.get().addStock(quantityToAdd);
         }
     }
 }

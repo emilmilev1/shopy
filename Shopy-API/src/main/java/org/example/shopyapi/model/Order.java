@@ -8,6 +8,15 @@ public class Order {
     private List<OrderItem> items;
     private List<Point> route;
 
+    public Order() {}
+
+    public Order(long newId, OrderStatus orderStatus, List<OrderItem> orderItems, List<Point> route) {
+        this.id = newId;
+        this.status = orderStatus;
+        this.items = orderItems;
+        this.route = route;
+    }
+
     public Long getId() {
         return this.id;
     }

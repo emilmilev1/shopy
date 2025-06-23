@@ -1,14 +1,12 @@
 package org.example.shopyapi.controller;
 
 import jakarta.validation.Valid;
+import org.example.shopyapi.dto.OrderStatusDto;
 import org.example.shopyapi.dto.PlaceOrderRequestDto;
 import org.example.shopyapi.model.OrderResult;
 import org.example.shopyapi.service.OrderService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -23,5 +21,13 @@ public class OrderController {
     public ResponseEntity<OrderResult> placeOrder(@Valid @RequestBody PlaceOrderRequestDto requestDto) {
         OrderResult result = orderService.processOrder(requestDto);
         return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrderStatusDto> getOrderStatus(@PathVariable Long id) {
+        return orderService.findById(id)
+                .map(order -> new OrderStatusDto(order.getId(), order.getStatus()))
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 }

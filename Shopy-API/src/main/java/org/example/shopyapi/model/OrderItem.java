@@ -2,7 +2,7 @@ package org.example.shopyapi.model;
 
 public class OrderItem {
     private String productName;
-     int quantity;
+    private int quantity;
 
     public OrderItem(String productName, int quantity) {
         this.productName = productName;
