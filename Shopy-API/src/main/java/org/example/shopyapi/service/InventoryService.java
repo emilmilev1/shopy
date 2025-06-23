@@ -19,12 +19,28 @@ public class InventoryService {
     private final Map<String, Long> nameToIdIndex = new ConcurrentHashMap<>();
 
     public Product createProduct(CreateProductRequestDto productDto) {
-        if (nameToIdIndex.containsKey(productDto.name().toLowerCase())) {
-            throw new IllegalStateException("Product with name '" + productDto.name() + "' already exists.");
+        Optional<Product> productByName = findByName(productDto.name());
+        Optional<Product> productAtLocation = findByLocation(productDto.location());
+
+        // Same name and same location
+        if (productByName.isPresent() && productAtLocation.isPresent()
+                && productByName.get().getLocation().equals(productDto.location())) {
+            Product existing = productByName.get();
+            if (Double.compare(existing.getPrice(), productDto.price()) == 0) {
+                existing.addStock(productDto.quantity());
+                return existing;
+            } else {
+                throw new IllegalStateException("Product with name '" + productDto.name() + "' at location " + productDto.location() + " already exists but with a different price.");
+            }
         }
 
-        Optional<Product> productAtLocation = findByLocation(productDto.location());
-        if (productAtLocation.isPresent()) {
+        // Same name, different location
+        if (productByName.isPresent() && !productByName.get().getLocation().equals(productDto.location())) {
+            throw new IllegalStateException("Product with name '" + productDto.name() + "' already exists at a different location.");
+        }
+
+        // Different name, same location
+        if (productAtLocation.isPresent() && !productAtLocation.get().getName().equalsIgnoreCase(productDto.name())) {
             throw new IllegalStateException(
                     "Location " + productDto.location() + " is already occupied by product: " + productAtLocation.get().getName()
             );
