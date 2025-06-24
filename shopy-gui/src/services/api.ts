@@ -5,9 +5,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL;
 export class ApiService {
     // Products
     static async getProducts(): Promise<Product[]> {
-        const response = await fetch(
-            `${API_BASE_URL}/products`
-        );
+        const response = await fetch(`${API_BASE_URL}/products`);
         if (!response.ok) {
             throw new Error("Failed to fetch products");
         }
@@ -15,16 +13,13 @@ export class ApiService {
     }
 
     static async createProduct(product: Omit<Product, "id">): Promise<Product> {
-        const response = await fetch(
-            `${API_BASE_URL}/products`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(product),
-            }
-        );
+        const response = await fetch(`${API_BASE_URL}/products`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(product),
+        });
         if (!response.ok) {
             throw new Error("Failed to create product");
         }
@@ -35,20 +30,17 @@ export class ApiService {
         id: number,
         updates: Partial<Product>
     ): Promise<Product> {
-        const response = await fetch(
-            `${API_BASE_URL}/products/${id}`,
-            {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    newQuantity: updates.quantity,
-                    newPrice: updates.price,
-                    newLocation: updates.location,
-                }),
-            }
-        );
+        const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                newQuantity: updates.quantity,
+                newPrice: updates.price,
+                newLocation: updates.location,
+            }),
+        });
         if (!response.ok) {
             throw new Error("Failed to update product");
         }
@@ -56,29 +48,31 @@ export class ApiService {
     }
 
     static async deleteProduct(id: number): Promise<void> {
-        const response = await fetch(
-            `${API_BASE_URL}/products/${id}`,
-            {
-                method: "DELETE",
-            }
-        );
+        const response = await fetch(`${API_BASE_URL}/products/${id}`, {
+            method: "DELETE",
+        });
         if (!response.ok) {
             throw new Error("Failed to delete product");
         }
     }
 
-    // Create order and Order status
+    // Orders
+    static async getOrders(): Promise<Order[]> {
+        const res = await fetch(`${API_BASE_URL}/orders`);
+        if (!res.ok) {
+            throw new Error("Failed to fetch orders");
+        }
+        return res.json();
+    }
+
     static async createOrder(items: OrderItem[]): Promise<Order> {
-        const response = await fetch(
-            `${API_BASE_URL}/orders`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ items }),
-            }
-        );
+        const response = await fetch(`${API_BASE_URL}/orders`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ items }),
+        });
         if (!response.ok) {
             throw new Error("Failed to create order");
         }
@@ -86,12 +80,7 @@ export class ApiService {
     }
 
     static async getOrderStatus(orderId: number) {
-        const response = await fetch(
-            `${API_BASE_URL}/orders/${orderId}`
-        );
-        console.log(`Fetching order status for ID: ${orderId}`);
-        console.log(`Response status: ${response.status}`);
-        console.log(`Response URL: ${response.url}`);
+        const response = await fetch(`${API_BASE_URL}/orders/${orderId}`);
         if (!response.ok) {
             throw new Error("Failed to fetch order");
         }
