@@ -13,17 +13,14 @@ export type OrderItem = {
 };
 
 export type Order = {
-    id: string;
-    customer: string;
-    datePlaced: string;
+    id: string | number;
     items: OrderItem[];
     status: string;
+    createdAt?: string;
 };
 
-export type ApiRoute = {
-    orderId: string;
-    route: {
-        from: [number, number];
-        to: [number, number];
-    }[];
+export type Route = {
+    orderId: number;
+    status: string;
+    visitedLocations: number[][];
 };
