@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 
 type HeaderProps = {
-    setPage: (page: "products" | "orders") => void;
+    setPage: (page: "products" | "orders" | "routes") => void;
 };
 
 const Header: React.FC<HeaderProps> = ({ setPage }) => (
@@ -35,6 +35,9 @@ const Header: React.FC<HeaderProps> = ({ setPage }) => (
                     </Button>
                     <Button color="inherit" onClick={() => setPage("orders")}>
                         Orders
+                    </Button>
+                    <Button color="inherit" onClick={() => setPage("routes")}>
+                        Routes
                     </Button>
                 </Box>
             </Toolbar>
