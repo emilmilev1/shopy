@@ -5,6 +5,7 @@ import org.example.shopyapi.dto.PlaceOrderRequestDto;
 import org.example.shopyapi.model.*;
 import org.example.shopyapi.repository.OrderRepository;
 import org.example.shopyapi.repository.OrderItemRepository;
+import org.example.shopyapi.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,16 +21,25 @@ public class OrderService {
     private final OrderItemRepository orderItemRepository;
     private final InventoryService inventoryService;
     private final RoutingService routingService;
+    private final UserRepository userRepository;
 
     @Autowired
-    public OrderService(OrderRepository orderRepository, OrderItemRepository orderItemRepository, InventoryService inventoryService, RoutingService routingService) {
+    public OrderService(OrderRepository orderRepository, OrderItemRepository orderItemRepository, InventoryService inventoryService, RoutingService routingService, UserRepository userRepository) {
         this.orderRepository = orderRepository;
         this.orderItemRepository = orderItemRepository;
         this.inventoryService = inventoryService;
         this.routingService = routingService;
+        this.userRepository = userRepository;
     }
 
-    public OrderResult processOrder(PlaceOrderRequestDto requestDto) {
+    public OrderResult processOrder(PlaceOrderRequestDto requestDto, String userEmail) {
+        // Find the user
+        Optional<User> userOpt = userRepository.findByEmail(userEmail);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("User not found: " + userEmail);
+        }
+        User user = userOpt.get();
+
         List<String> missingItems = checkStock(requestDto);
 
         List<OrderItem> orderItems = requestDto.items().stream()
@@ -43,6 +53,7 @@ public class OrderService {
             message = "Not enough stock to fulfill your order.";
             order = new Order();
             order.setStatus(OrderStatus.FAIL);
+            order.setUser(user);
             order.addItems(orderItems);
             order.setRoute(List.of());
             order = orderRepository.save(order);
@@ -58,6 +69,7 @@ public class OrderService {
 
         order = new Order();
         order.setStatus(OrderStatus.SUCCESS);
+        order.setUser(user);
         order.addItems(orderItems);
         order.setRoute(route);
         order = orderRepository.save(order);
@@ -103,7 +115,24 @@ public class OrderService {
         return orderRepository.findById(id);
     }
 
+    public Optional<Order> findByIdAndUser(Long id, String userEmail) {
+        Optional<User> userOpt = userRepository.findByEmail(userEmail);
+        if (userOpt.isEmpty()) {
+            return Optional.empty();
+        }
+        return orderRepository.findById(id)
+                .filter(order -> order.getUser() != null && order.getUser().getId().equals(userOpt.get().getId()));
+    }
+
     public Collection<Order> getAllProducts() {
         return orderRepository.findAll();
+    }
+
+    public Collection<Order> getOrdersByUser(String userEmail) {
+        Optional<User> userOpt = userRepository.findByEmail(userEmail);
+        if (userOpt.isEmpty()) {
+            return List.of();
+        }
+        return orderRepository.findByUser(userOpt.get());
     }
 }

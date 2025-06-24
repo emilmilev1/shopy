@@ -7,16 +7,19 @@ import java.util.Locale;
 import java.util.Objects;
 
 @Entity
-@Table(name = "product", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "location_x", "location_y"}))
+@Table(name = "product", uniqueConstraints = @UniqueConstraint(columnNames = {"name", "location_x", "location_y", "user_id"}))
 public class Product {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(unique = false)
     private String name;
     private double price;
     private int quantity;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User user;
 
     @Embedded
     @AttributeOverrides({
@@ -82,6 +85,14 @@ public class Product {
     }
 
     public void setQuantity(int quantity) { this.quantity = quantity; }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
+    }
 
     public Point getLocation() {
         return location;

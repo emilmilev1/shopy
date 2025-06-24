@@ -6,6 +6,8 @@ import org.example.shopyapi.dto.PlaceOrderRequestDto;
 import org.example.shopyapi.model.OrderResult;
 import org.example.shopyapi.service.OrderService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
@@ -22,7 +24,10 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<Object> placeOrder(@Valid @RequestBody PlaceOrderRequestDto requestDto) {
-        OrderResult result = orderService.processOrder(requestDto);
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = authentication.getName();
+        
+        OrderResult result = orderService.processOrder(requestDto, userEmail);
         return ResponseEntity.ok(new java.util.LinkedHashMap<>() {{
             put("id", result.orderId());
             put("status", result.status());
@@ -32,7 +37,10 @@ public class OrderController {
 
     @GetMapping("/{id}")
     public ResponseEntity<OrderStatusDto> getOrderStatus(@PathVariable Long id) {
-        return orderService.findById(id)
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = authentication.getName();
+        
+        return orderService.findByIdAndUser(id, userEmail)
                 .map(order -> new OrderStatusDto(order.getId(), order.getStatus()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -40,7 +48,10 @@ public class OrderController {
 
     @GetMapping
     public ResponseEntity<Collection<OrderStatusDto>> listOrders() {
-        var orders = orderService.getAllProducts().stream()
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String userEmail = authentication.getName();
+        
+        var orders = orderService.getOrdersByUser(userEmail).stream()
                 .map(OrderStatusDto::fromEntity)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(orders);
