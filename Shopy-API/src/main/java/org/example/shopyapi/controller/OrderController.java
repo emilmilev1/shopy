@@ -8,6 +8,9 @@ import org.example.shopyapi.service.OrderService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collection;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -33,5 +36,13 @@ public class OrderController {
                 .map(order -> new OrderStatusDto(order.getId(), order.getStatus()))
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping
+    public ResponseEntity<Collection<OrderStatusDto>> listOrders() {
+        var orders = orderService.getAllProducts().stream()
+                .map(OrderStatusDto::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orders);
     }
 }
