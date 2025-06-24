@@ -6,6 +6,7 @@ A full-stack warehouse management application with a Spring Boot backend and Rea
 
 This repository contains two main applications:
 
+- **[Minimal](./Shopy/)** - CLI Project
 - **[Shopy-API](./Shopy-API/)** - Spring Boot backend API
 - **[shopy-gui](./shopy-gui/)** - React frontend application
 - **[files](./files/)** - Additional resources including Postman collection
