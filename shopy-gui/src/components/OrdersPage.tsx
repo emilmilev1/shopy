@@ -21,12 +21,14 @@ import {
     MenuItem,
     FormControl,
     InputLabel,
+    Chip,
+    Alert,
 } from "@mui/material";
-import { ApiService } from "../services/api";
 import { Order } from "../types";
-import { useWarehouseData } from "../hooks/useWarehouseData";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { ordersAPI, authAPI, productsAPI } from "../services/api";
+import { Product } from "../types";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -34,7 +36,9 @@ const OrdersPage: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { products } = useWarehouseData();
+    const currentUser = authAPI.getCurrentUser();
+    const [products, setProducts] = useState<Product[]>([]);
+    const [productsLoading, setProductsLoading] = useState(false);
 
     const [pageNum, setPageNum] = useState(1);
     const pageCount = Math.ceil(orders.length / ORDERS_PER_PAGE);
@@ -53,7 +57,7 @@ const OrdersPage: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await ApiService.getOrders();
+            const data = await ordersAPI.getAll();
             setOrders(data);
         } catch (err: any) {
             setError(err.message || "Failed to fetch orders");
@@ -66,9 +70,25 @@ const OrdersPage: React.FC = () => {
         fetchOrders();
     }, []);
 
-    const handleOpenModal = () => {
+    // check when products are loaded
+    // useEffect(() => {
+    //     console.log('Products loaded:', products.length, products);
+    // }, [products]);
+
+    const handleOpenModal = async () => {
         setItems([{ productId: "", quantity: 1 }]);
         setModalOpen(true);
+
+        setProductsLoading(true);
+        try {
+            const data = await productsAPI.getAll();
+            setProducts(data);
+        } catch (err: any) {
+            console.error("Failed to fetch products:", err);
+            setProducts([]);
+        } finally {
+            setProductsLoading(false);
+        }
     };
     const handleCloseModal = () => {
         setModalOpen(false);
@@ -102,18 +122,19 @@ const OrdersPage: React.FC = () => {
     const handleCreateOrder = async () => {
         setCreating(true);
         try {
-            // Validate all items have a product selected
             for (const item of items) {
                 if (!item.productId)
                     throw new Error("Please select a product for each item.");
             }
-            // Map productId to productName for API
+
             const orderItems = items.map(({ productId, quantity }) => {
-                const product = products.find((p) => p.id.toString() === productId);
+                const product = products.find(
+                    (p) => p.id.toString() === productId
+                );
                 if (!product) throw new Error("Product not found");
                 return { productName: product.name, quantity };
             });
-            await ApiService.createOrder(orderItems);
+            await ordersAPI.create({ items: orderItems });
             setModalOpen(false);
             fetchOrders();
             setPageNum(1);
@@ -126,11 +147,33 @@ const OrdersPage: React.FC = () => {
         }
     };
 
-    // Prevent selecting the same product twice in the same order
     const selectedProductIds = items.map((item) => item.productId);
+
+    const getStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case "success":
+                return "success";
+            case "fail":
+                return "error";
+            default:
+                return "default";
+        }
+    };
 
     return (
         <Box sx={{ py: 4 }}>
+            {currentUser && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
+                        Welcome, {currentUser.name}!
+                    </Typography>
+                    <Typography variant="body2">
+                        You are viewing your personal orders. Each user can only
+                        see their own orders.
+                    </Typography>
+                </Alert>
+            )}
+
             <Box
                 sx={{
                     display: "flex",
@@ -140,12 +183,14 @@ const OrdersPage: React.FC = () => {
                 }}
             >
                 <Typography variant="h4" sx={{ fontWeight: "bold" }}>
-                    Orders
+                    My Orders
                 </Typography>
                 <Button
                     variant="contained"
                     color="success"
                     onClick={handleOpenModal}
+                    startIcon={<AddIcon />}
+                    disabled={false}
                 >
                     Create Order
                 </Button>
@@ -160,7 +205,7 @@ const OrdersPage: React.FC = () => {
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableCell>ID</TableCell>
+                                    <TableCell>Order ID</TableCell>
                                     <TableCell>Status</TableCell>
                                 </TableRow>
                             </TableHead>
@@ -168,12 +213,39 @@ const OrdersPage: React.FC = () => {
                                 {paginatedOrders.map((order) => (
                                     <TableRow key={order.id} hover>
                                         <TableCell>{order.id}</TableCell>
-                                        <TableCell>{order.status}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={order.status}
+                                                color={
+                                                    getStatusColor(
+                                                        order.status
+                                                    ) as any
+                                                }
+                                                size="small"
+                                            />
+                                        </TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </TableContainer>
+                    {orders.length === 0 && !loading && (
+                        <Box sx={{ p: 4, textAlign: "center" }}>
+                            <Typography variant="h6" color="text.secondary">
+                                No orders found. Create your first order!
+                            </Typography>
+                            {products.length === 0 && (
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{ mt: 1 }}
+                                >
+                                    You need to add products first before
+                                    creating orders.
+                                </Typography>
+                            )}
+                        </Box>
+                    )}
                     {pageCount > 1 && (
                         <Box
                             sx={{
@@ -199,96 +271,119 @@ const OrdersPage: React.FC = () => {
             <Dialog
                 open={modalOpen}
                 onClose={handleCloseModal}
-                maxWidth="xs"
+                maxWidth="md"
                 fullWidth
             >
-                <DialogTitle>Create Order</DialogTitle>
+                <DialogTitle>Create New Order</DialogTitle>
                 <DialogContent>
-                    {items.map((item, idx) => (
+                    <Box sx={{ mt: 2 }}>
+                        {/* Debug info */}
                         <Box
-                            key={idx}
                             sx={{
-                                display: "flex",
-                                gap: 1,
-                                alignItems: "center",
-                                mb: 1,
+                                mb: 2,
+                                p: 1,
+                                bgcolor: "grey.100",
+                                borderRadius: 1,
                             }}
                         >
-                            <FormControl size="small" fullWidth required>
-                                <InputLabel id={`product-select-label-${idx}`}>
-                                    Product
-                                </InputLabel>
-                                <Select
-                                    labelId={`product-select-label-${idx}`}
-                                    value={item.productId}
-                                    label="Product"
+                            <Typography variant="body2" color="text.secondary">
+                                {productsLoading
+                                    ? "Loading products..."
+                                    : `Available products: ${products.length}`}
+                            </Typography>
+                            {!productsLoading && products.length === 0 && (
+                                <Typography variant="body2" color="error">
+                                    No products available. Please add products
+                                    first.
+                                </Typography>
+                            )}
+                        </Box>
+
+                        {items.map((item, idx) => (
+                            <Box
+                                key={idx}
+                                sx={{
+                                    display: "flex",
+                                    gap: 2,
+                                    mb: 2,
+                                    alignItems: "center",
+                                }}
+                            >
+                                <FormControl fullWidth>
+                                    <InputLabel>Product</InputLabel>
+                                    <Select
+                                        value={item.productId}
+                                        onChange={(e) =>
+                                            handleItemChange(
+                                                idx,
+                                                "productId",
+                                                e.target.value
+                                            )
+                                        }
+                                        label="Product"
+                                        disabled={productsLoading}
+                                    >
+                                        {productsLoading ? (
+                                            <MenuItem disabled>
+                                                Loading products...
+                                            </MenuItem>
+                                        ) : (
+                                            products.map((product) => (
+                                                <MenuItem
+                                                    key={product.id}
+                                                    value={product.id.toString()}
+                                                    disabled={selectedProductIds.includes(
+                                                        product.id.toString()
+                                                    )}
+                                                >
+                                                    {product.name} - $
+                                                    {product.price} (Stock:{" "}
+                                                    {product.quantity})
+                                                </MenuItem>
+                                            ))
+                                        )}
+                                    </Select>
+                                </FormControl>
+                                <TextField
+                                    type="number"
+                                    label="Quantity"
+                                    value={item.quantity}
                                     onChange={(e) =>
                                         handleItemChange(
                                             idx,
-                                            "productId",
+                                            "quantity",
                                             e.target.value
                                         )
                                     }
+                                    sx={{ width: 120 }}
+                                    inputProps={{ min: 1 }}
+                                />
+                                <IconButton
+                                    onClick={() => handleRemoveItem(idx)}
+                                    disabled={items.length === 1}
+                                    color="error"
                                 >
-                                    {products
-                                        .filter(
-                                            (p) =>
-                                                !selectedProductIds.includes(
-                                                    p.id.toString()
-                                                ) ||
-                                                item.productId ===
-                                                    p.id.toString()
-                                        )
-                                        .map((product) => (
-                                            <MenuItem
-                                                key={product.id}
-                                                value={product.id.toString()}
-                                            >
-                                                {product.name}
-                                            </MenuItem>
-                                        ))}
-                                </Select>
-                            </FormControl>
-                            <TextField
-                                label="Quantity"
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                    handleItemChange(
-                                        idx,
-                                        "quantity",
-                                        e.target.value
-                                    )
-                                }
-                                size="small"
-                                sx={{ width: 100 }}
-                                required
-                            />
-                            <IconButton
-                                onClick={() => handleRemoveItem(idx)}
-                                disabled={items.length === 1}
-                            >
-                                <DeleteIcon />
-                            </IconButton>
-                        </Box>
-                    ))}
-                    <Button
-                        startIcon={<AddIcon />}
-                        onClick={handleAddItem}
-                        sx={{ mt: 1 }}
-                    >
-                        Add Product
-                    </Button>
+                                    <DeleteIcon />
+                                </IconButton>
+                            </Box>
+                        ))}
+                        <Button
+                            onClick={handleAddItem}
+                            startIcon={<AddIcon />}
+                            variant="outlined"
+                        >
+                            Add Item
+                        </Button>
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={handleCloseModal}>Cancel</Button>
                     <Button
                         onClick={handleCreateOrder}
                         variant="contained"
-                        color="success"
                         disabled={creating}
                     >
-                        Create
+                        {creating ? "Creating..." : "Create Order"}
                     </Button>
                 </DialogActions>
             </Dialog>

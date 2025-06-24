@@ -1,38 +1,31 @@
 import { useState, useEffect } from "react";
 import { Product } from "../types";
-import { ApiService } from "../services/api";
+import { productsAPI } from "../services/api";
 
-export const useWarehouseData = () => {
+export function useWarehouseData(user?: any) {
     const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-            const apiProducts = await ApiService.getProducts();
-            setProducts(
-                apiProducts.map((p) => ({ ...p, id: p.id.toString() }))
-            );
-        } catch (err) {
-            console.error("Failed to load data:", err);
-            setError(
-                "Failed to load data from API. Please check your connection."
-            );
+        if (!user) {
             setProducts([]);
-        } finally {
             setLoading(false);
+            setError(null);
+            return;
         }
-    };
+        setLoading(true);
+        setError(null);
+        productsAPI
+            .getAll()
+            .then(setProducts)
+            .catch((err) => setError(err.message || "Failed to load products"))
+            .finally(() => setLoading(false));
+    }, [user]);
 
     const addProduct = async (product: Omit<Product, "id">) => {
         try {
-            const apiProduct = await ApiService.createProduct({
+            const apiProduct = await productsAPI.create({
                 name: product.name,
                 price: product.price,
                 quantity: product.quantity,
@@ -72,15 +65,11 @@ export const useWarehouseData = () => {
 
     const updateProduct = async (product: Product) => {
         try {
-            const apiProduct = await ApiService.updateProduct(
-                Number(product.id),
-                {
-                    name: product.name,
-                    price: product.price,
-                    quantity: product.quantity,
-                    location: product.location,
-                }
-            );
+            const apiProduct = await productsAPI.update(Number(product.id), {
+                newQuantity: product.quantity,
+                newPrice: product.price,
+                newLocation: product.location,
+            });
             setProducts((prev) =>
                 prev.map((p) =>
                     p.id === product.id
@@ -96,8 +85,8 @@ export const useWarehouseData = () => {
 
     const deleteProduct = async (productId: string) => {
         try {
-            await ApiService.deleteProduct(Number(productId));
-            setProducts((prev) => prev.filter((p) => p.id !== productId));
+            await productsAPI.delete(Number(productId));
+            setProducts((prev) => prev.filter((p) => p.id.toString() !== productId));
         } catch (err) {
             console.error("Failed to delete product:", err);
             throw new Error("Failed to delete product");
@@ -111,6 +100,22 @@ export const useWarehouseData = () => {
         addProduct,
         updateProduct,
         deleteProduct,
-        refreshData: loadData,
+        refreshData: () => {
+            if (!user) {
+                setProducts([]);
+                setLoading(false);
+                setError(null);
+                return;
+            }
+            setLoading(true);
+            setError(null);
+            productsAPI
+                .getAll()
+                .then(setProducts)
+                .catch((err) =>
+                    setError(err.message || "Failed to load products")
+                )
+                .finally(() => setLoading(false));
+        },
     };
-};
+}

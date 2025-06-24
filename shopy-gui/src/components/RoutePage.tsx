@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Box, Typography, Button, Paper, TextField } from "@mui/material";
 import type { Product } from "../types";
-import { ApiService } from "../services/api";
+import { ordersAPI, routesAPI } from "../services/api";
 
 type RoutePageProps = {
     products: Product[];
@@ -11,23 +11,19 @@ const RoutePage: React.FC<RoutePageProps> = ({ products }) => {
     const [orderId, setOrderId] = useState("");
     const [status, setStatus] = useState<string | null>(null);
     const [route, setRoute] = useState<number[][] | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
     const handleCheck = async () => {
         setStatus(null);
         setRoute(null);
-        setError(null);
         setLoading(true);
         try {
-            const orderStatus = await ApiService.getOrderStatus(
-                Number(orderId)
-            );
+            const orderStatus = await ordersAPI.getStatusById(Number(orderId));
             setStatus(orderStatus.status);
-            const routeData = await ApiService.getOrderRoute(Number(orderId));
+            const routeData = await routesAPI.getById(Number(orderId));
             setRoute(routeData.visitedLocations);
         } catch (err: any) {
-            setError(err.message || "Error fetching order or route");
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -67,7 +63,7 @@ const RoutePage: React.FC<RoutePageProps> = ({ products }) => {
                         Status: <b>{status}</b>
                     </Typography>
                 )}
-                {error && <Typography color="error">{error}</Typography>}
+                {/* {error && <Typography color="error">{error}</Typography>} */}
             </Paper>
             {route && (
                 <Paper sx={{ p: 3, maxWidth: 400, width: "100%" }}>
@@ -75,10 +71,10 @@ const RoutePage: React.FC<RoutePageProps> = ({ products }) => {
                         Route Steps
                     </Typography>
                     <Box component="ol" sx={{ pl: 3, mb: 0 }}>
-                        {route.map(([x, y], idx) => (
+                        {route.map((loc, idx) => (
                             <li key={idx}>
                                 <Typography variant="body2">
-                                    Step {idx + 1}: ({x}, {y})
+                                    Step {idx + 1}: ({loc[0]}, {loc[1]})
                                 </Typography>
                             </li>
                         ))}
